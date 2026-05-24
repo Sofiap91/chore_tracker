@@ -28,6 +28,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
     if (!this._initialized) {
       this._initialized = true;
       this._hass.callService(this._config.domain, "list_due_chores", {}).catch(function () {});
+      this._hass.callService(this._config.domain, "list_chores", {}).catch(function () {});
     }
     this._render();
   }
@@ -38,6 +39,13 @@ class ChoresTrackerTodayCard extends HTMLElement {
 
   _dueChores() {
     var stateObj = this._hass && this._hass.states ? this._hass.states[this._config.due_entity] : null;
+    var list = stateObj && stateObj.attributes ? stateObj.attributes.chores : null;
+    return Array.isArray(list) ? list : [];
+  }
+
+  _allChores() {
+    var allChoresEntity = "sensor.chores_tracker_chores";
+    var stateObj = this._hass && this._hass.states ? this._hass.states[allChoresEntity] : null;
     var list = stateObj && stateObj.attributes ? stateObj.attributes.chores : null;
     return Array.isArray(list) ? list : [];
   }
@@ -339,9 +347,9 @@ class ChoresTrackerTodayCard extends HTMLElement {
 
   _render() {
     if (!this.shadowRoot) return;
-    var chores = this._dueChores();
-    var rows = chores.length
-      ? chores
+    var dueChores = this._dueChores();
+    var dueRows = dueChores.length
+      ? dueChores
           .map(
             function (item) {
               return (
@@ -358,18 +366,50 @@ class ChoresTrackerTodayCard extends HTMLElement {
           .join("")
       : '<div class="empty">No chores due right now.</div>';
 
+    var allChores = this._allChores();
+    var activeChores = allChores.filter(function (c) { return c.is_active; });
+    var upcomingChores = activeChores
+      .filter(function (c) { return c.next_due_at; })
+      .sort(function (a, b) {
+        var aTime = new Date(a.next_due_at).getTime();
+        var bTime = new Date(b.next_due_at).getTime();
+        return aTime - bTime;
+      });
+    var upcomingRows = upcomingChores.length
+      ? upcomingChores
+          .map(
+            function (item) {
+              return (
+                '<div class="upcoming-row">' +
+                '<div class="left">' +
+                '<div class="title">' + this._esc(item.title) + "</div>" +
+                (item.next_due_at ? '<div class="meta">' + this._esc(this._fmtDate(item.next_due_at)) + "</div>" : "") +
+                "</div>" +
+                "</div>"
+              );
+            }.bind(this)
+          )
+          .join("")
+      : '<div class="upcoming-empty">No upcoming chores.</div>';
+
     this.shadowRoot.innerHTML =
       '<ha-card>' +
       '<div class="card-content">' +
       '<div class="head">' +
       '<h2>' + this._esc(this._config.title) + "</h2>" +
       '<div class="head-right">' +
-      '<span class="count">' + chores.length + "</span>" +
+      '<span class="count">' + dueChores.length + "</span>" +
       '<button id="add-chore-btn" class="add">+ Add</button>' +
       '</div>' +
       "</div>" +
       (this._error ? '<div class="error">' + this._esc(this._error) + "</div>" : "") +
-      rows +
+      dueRows +
+      '<div class="upcoming-section">' +
+      '<h3>Upcoming</h3>' +
+      '<div class="upcoming-list">' +
+      upcomingRows +
+      '</div>' +
+      '</div>' +
       "</div>" +
       "</ha-card>" +
       (this._editorOpen ? this._renderEditorModal() : "") +
@@ -391,6 +431,12 @@ class ChoresTrackerTodayCard extends HTMLElement {
       ".done:disabled { opacity: 0.55; cursor: wait; }" +
       ".empty { color: var(--secondary-text-color); font-style: italic; padding: 8px 0; }" +
       ".error { margin-bottom: 8px; color: #b00020; font-size: 0.9rem; }" +
+      ".upcoming-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--divider-color); }" +
+      ".upcoming-section h3 { margin: 0 0 10px 0; font-size: 0.95rem; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: 0.05em; }" +
+      ".upcoming-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }" +
+      ".upcoming-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--divider-color); }" +
+      ".upcoming-row:last-child { border-bottom: none; }" +
+      ".upcoming-empty { color: var(--secondary-text-color); font-style: italic; padding: 8px 0; font-size: 0.9rem; }" +
       ".ed-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 14px; box-sizing: border-box; }" +
       ".ed-dialog { width: min(620px, 96vw); max-height: 90vh; background: var(--card-background-color); border-radius: 14px; box-shadow: 0 10px 38px rgba(0,0,0,0.35); display: flex; flex-direction: column; }" +
       ".ed-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--divider-color); font-weight: 700; }" +
