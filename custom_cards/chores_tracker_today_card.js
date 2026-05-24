@@ -354,11 +354,11 @@ class ChoresTrackerTodayCard extends HTMLElement {
             function (item) {
               return (
                 '<div class="row">' +
+                '<input class="task-check" type="checkbox" data-id="' + this._esc(item.id) + '" ' + (this._busy ? "disabled" : "") + '>' +
                 '<div class="left">' +
                 '<div class="title">' + this._esc(item.title) + "</div>" +
                 (item.next_due_at ? '<div class="meta">Due ' + this._esc(this._fmtDate(item.next_due_at)) + "</div>" : "") +
                 "</div>" +
-                '<button class="done" data-id="' + this._esc(item.id) + '" ' + (this._busy ? "disabled" : "") + ">Done</button>" +
                 "</div>"
               );
             }.bind(this)
@@ -381,6 +381,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
             function (item) {
               return (
                 '<div class="upcoming-row">' +
+                '<input class="task-check" type="checkbox" data-id="' + this._esc(item.id) + '" ' + (this._busy ? "disabled" : "") + '>' +
                 '<div class="left">' +
                 '<div class="title">' + this._esc(item.title) + "</div>" +
                 (item.next_due_at ? '<div class="meta">' + this._esc(this._fmtDate(item.next_due_at)) + "</div>" : "") +
@@ -424,11 +425,10 @@ class ChoresTrackerTodayCard extends HTMLElement {
       ".add:hover { border-color: var(--primary-color); }" +
       ".row { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--divider-color); }" +
       ".row:last-child { border-bottom: none; }" +
+      ".task-check { width: 18px; height: 18px; margin: 0; accent-color: var(--primary-color); cursor: pointer; flex-shrink: 0; }" +
       ".left { min-width: 0; }" +
       ".title { font-weight: 600; }" +
       ".meta { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }" +
-      ".done { border: none; border-radius: 10px; background: var(--primary-color); color: white; padding: 7px 10px; cursor: pointer; }" +
-      ".done:disabled { opacity: 0.55; cursor: wait; }" +
       ".empty { color: var(--secondary-text-color); font-style: italic; padding: 8px 0; }" +
       ".error { margin-bottom: 8px; color: #b00020; font-size: 0.9rem; }" +
       ".upcoming-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--divider-color); }" +
@@ -455,10 +455,12 @@ class ChoresTrackerTodayCard extends HTMLElement {
       "@media (max-width: 700px) { .ed-grid-2 { grid-template-columns: 1fr; } }" +
       "</style>";
 
-    var buttons = this.shadowRoot.querySelectorAll("button.done");
-    for (var i = 0; i < buttons.length; i++) {
-      buttons[i].addEventListener("click", function (ev) {
-        var id = parseInt(ev.currentTarget.getAttribute("data-id"), 10);
+    var checks = this.shadowRoot.querySelectorAll("input.task-check");
+    for (var i = 0; i < checks.length; i++) {
+      checks[i].addEventListener("change", function (ev) {
+        var el = ev.currentTarget;
+        if (!el.checked) return;
+        var id = parseInt(el.getAttribute("data-id"), 10);
         if (!Number.isNaN(id)) this._markDone(id);
       }.bind(this));
     }
