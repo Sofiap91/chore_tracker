@@ -423,10 +423,10 @@ class ChoresTrackerTodayCard extends HTMLElement {
       ".count { background: var(--primary-color); color: white; font-size: 12px; border-radius: 999px; padding: 2px 8px; }" +
       ".add { border: 1px solid var(--divider-color); border-radius: 10px; background: var(--secondary-background-color); color: var(--primary-text-color); padding: 6px 10px; cursor: pointer; }" +
       ".add:hover { border-color: var(--primary-color); }" +
-      ".row { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--divider-color); }" +
+      ".row { display: flex; justify-content: flex-start; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--divider-color); }" +
       ".row:last-child { border-bottom: none; }" +
-      ".task-check { width: 18px; height: 18px; margin: 0; accent-color: var(--primary-color); cursor: pointer; flex-shrink: 0; }" +
-      ".left { min-width: 0; }" +
+      ".task-check { width: 18px; height: 18px; margin: 2px 0 0 0; accent-color: var(--primary-color); cursor: pointer; flex-shrink: 0; }" +
+      ".left { min-width: 0; flex: 1; }" +
       ".title { font-weight: 600; }" +
       ".meta { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }" +
       ".empty { color: var(--secondary-text-color); font-style: italic; padding: 8px 0; }" +
@@ -434,7 +434,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
       ".upcoming-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--divider-color); }" +
       ".upcoming-section h3 { margin: 0 0 10px 0; font-size: 0.95rem; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: 0.05em; }" +
       ".upcoming-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }" +
-      ".upcoming-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--divider-color); }" +
+      ".upcoming-row { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--divider-color); }" +
       ".upcoming-row:last-child { border-bottom: none; }" +
       ".upcoming-empty { color: var(--secondary-text-color); font-style: italic; padding: 8px 0; font-size: 0.9rem; }" +
       ".ed-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 14px; box-sizing: border-box; }" +
