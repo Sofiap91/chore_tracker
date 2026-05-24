@@ -64,6 +64,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
     this._render();
     try {
       await this._hass.callService(this._config.domain, "mark_complete", { id: id });
+      await this._hass.callService(this._config.domain, "list_chores", {});
       await this._hass.callService(this._config.domain, "list_due_chores", {});
     } catch (err) {
       this._error = (err && err.message) || "Failed to mark chore complete.";
@@ -352,12 +353,16 @@ class ChoresTrackerTodayCard extends HTMLElement {
       ? dueChores
           .map(
             function (item) {
+              var extraMeta = item.last_completed_at
+                ? '<div class="meta">Last completed ' + this._esc(this._fmtDate(item.last_completed_at)) + "</div>"
+                : "";
               return (
                 '<div class="row">' +
                 '<input class="task-check" type="checkbox" data-id="' + this._esc(item.id) + '" ' + (this._busy ? "disabled" : "") + '>' +
                 '<div class="left">' +
                 '<div class="title">' + this._esc(item.title) + "</div>" +
                 (item.next_due_at ? '<div class="meta">Due ' + this._esc(this._fmtDate(item.next_due_at)) + "</div>" : "") +
+                extraMeta +
                 "</div>" +
                 "</div>"
               );
@@ -379,12 +384,16 @@ class ChoresTrackerTodayCard extends HTMLElement {
       ? upcomingChores
           .map(
             function (item) {
+              var completedMeta = item.last_completed_at
+                ? '<div class="meta">Last completed ' + this._esc(this._fmtDate(item.last_completed_at)) + "</div>"
+                : "";
               return (
                 '<div class="upcoming-row">' +
                 '<input class="task-check" type="checkbox" data-id="' + this._esc(item.id) + '" ' + (this._busy ? "disabled" : "") + '>' +
                 '<div class="left">' +
                 '<div class="title">' + this._esc(item.title) + "</div>" +
                 (item.next_due_at ? '<div class="meta">' + this._esc(this._fmtDate(item.next_due_at)) + "</div>" : "") +
+                completedMeta +
                 "</div>" +
                 "</div>"
               );
