@@ -475,7 +475,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
                 '<input class="task-check" type="checkbox" data-id="' + this._esc(item.id) + '" ' + (this._busy ? "disabled" : "") + '>' +
                 '<div class="left">' +
                 '<div class="title">' + this._esc(item.title) + "</div>" +
-                (item.next_due_at ? '<div class="meta meta-due">Due ' + this._esc(this._fmtDate(item.next_due_at)) + "</div>" : "") +
+                (item.next_due_at ? '<div class="meta meta-due">' + this._esc(this._fmtDate(item.next_due_at)) + "</div>" : "") +
                 completedMeta +
                 "</div>" +
                 '<div class="row-actions">' +
