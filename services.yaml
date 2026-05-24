@@ -1,0 +1,187 @@
+list_chores:
+  name: List chores
+  description: Refreshes and exposes chores in sensor.chores_tracker_chores attributes.
+
+list_due_chores:
+  name: List due chores
+  description: Refreshes and exposes currently due chores in sensor.chores_tracker_due attributes.
+
+create_chore:
+  name: Create chore
+  description: Creates a new chore with one-off, completion-based, or calendar-based recurrence.
+  fields:
+    title:
+      required: true
+      selector:
+        text:
+      example: Clean toilet
+    recurrence_mode:
+      required: true
+      description: one_off, from_completion, or calendar
+      selector:
+        select:
+          options:
+            - one_off
+            - from_completion
+            - calendar
+    description:
+      required: false
+      selector:
+        text:
+    interval_value:
+      required: false
+      description: Frequency amount (N in every N days/weeks/months).
+      selector:
+        number:
+          min: 1
+          mode: box
+    interval_unit:
+      required: false
+      description: days, weeks, or months
+      selector:
+        select:
+          options:
+            - days
+            - weeks
+            - months
+    calendar_weekday:
+      required: false
+      description: For weekly calendar chores, weekday index (0=Mon..6=Sun).
+      selector:
+        number:
+          min: 0
+          max: 6
+          mode: box
+    calendar_day_of_month:
+      required: false
+      description: For monthly calendar chores, day in month (1..31; clamps in short months).
+      selector:
+        number:
+          min: 1
+          max: 31
+          mode: box
+    anchor_date:
+      required: false
+      description: Optional anchor date for calendar cadence (YYYY-MM-DD).
+      selector:
+        text:
+    first_due_at:
+      required: false
+      description: Optional first due datetime in ISO format.
+      selector:
+        text:
+    is_active:
+      required: false
+      selector:
+        boolean:
+
+update_chore:
+  name: Update chore
+  description: Updates an existing chore by id.
+  fields:
+    id:
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+    title:
+      required: false
+      selector:
+        text:
+    description:
+      required: false
+      selector:
+        text:
+    recurrence_mode:
+      required: false
+      selector:
+        select:
+          options:
+            - one_off
+            - from_completion
+            - calendar
+    interval_value:
+      required: false
+      selector:
+        number:
+          min: 1
+          mode: box
+    interval_unit:
+      required: false
+      selector:
+        select:
+          options:
+            - days
+            - weeks
+            - months
+    calendar_weekday:
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 6
+          mode: box
+    calendar_day_of_month:
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 31
+          mode: box
+    anchor_date:
+      required: false
+      selector:
+        text:
+    first_due_at:
+      required: false
+      selector:
+        text:
+    is_active:
+      required: false
+      selector:
+        boolean:
+
+delete_chore:
+  name: Delete chore
+  description: Deletes a chore by id.
+  fields:
+    id:
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+
+mark_complete:
+  name: Mark chore complete
+  description: Records completion and computes the next due occurrence according to recurrence rules.
+  fields:
+    id:
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+    note:
+      required: false
+      selector:
+        text:
+
+get_history:
+  name: Get chore completion history
+  description: Exposes recent completion history in sensor.chores_tracker_history_<id>.
+  fields:
+    id:
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+    limit:
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 200
+          mode: box

@@ -1,0 +1,12 @@
+{
+  "domain": "chores_tracker",
+  "name": "Chores Tracker",
+  "version": "0.0.1",
+  "documentation": "https://example.com",
+  "dependencies": [],
+  "codeowners": [],
+  "requirements": [
+    "sqlalchemy==2.0.49",
+    "python-dateutil>=2.8.2"
+  ]
+}
