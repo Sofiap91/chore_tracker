@@ -123,4 +123,14 @@ class ChoresTrackerTodayCard extends HTMLElement {
   }
 }
 
-customElements.define("chores-tracker-today-card", ChoresTrackerTodayCard);
+if (!customElements.get("chores-tracker-today-card")) {
+  customElements.define("chores-tracker-today-card", ChoresTrackerTodayCard);
+}
+
+window.customCards = window.customCards || [];
+window.customCards.push({
+  type: "chores-tracker-today-card",
+  name: "Chores Tracker Today",
+  description: "Shows due chores and lets you mark them complete.",
+  preview: true,
+});
