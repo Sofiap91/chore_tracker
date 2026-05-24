@@ -12,6 +12,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
     this._initialized = false;
 
     this._editorOpen = false;
+    this._editorEditId = null;
     this._editorBusy = false;
     this._editorError = "";
     this._editorSuccess = "";
@@ -89,8 +90,42 @@ class ChoresTrackerTodayCard extends HTMLElement {
     };
   }
 
+  _toLocalDatetimeInput(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    var hh = String(d.getHours()).padStart(2, "0");
+    var mm = String(d.getMinutes()).padStart(2, "0");
+    return y + "-" + m + "-" + day + "T" + hh + ":" + mm;
+  }
+
   _openEditor() {
+    this._editorEditId = null;
     this._editorDraft = this._defaultEditorDraft();
+    this._editorError = "";
+    this._editorSuccess = "";
+    this._editorOpen = true;
+    this._render();
+  }
+
+  _openEditorForChore(chore) {
+    if (!chore) return;
+    this._editorEditId = chore.id;
+    this._editorDraft = {
+      title: chore.title || "",
+      description: chore.description || "",
+      recurrence_mode: chore.recurrence_mode || "calendar",
+      interval_value: chore.interval_value != null ? String(chore.interval_value) : "1",
+      interval_unit: chore.interval_unit || "days",
+      calendar_weekday: chore.calendar_weekday != null ? String(chore.calendar_weekday) : "2",
+      calendar_day_of_month: chore.calendar_day_of_month != null ? String(chore.calendar_day_of_month) : "1",
+      anchor_date: chore.anchor_date || "",
+      first_due_at_local: this._toLocalDatetimeInput(chore.next_due_at),
+      is_active: !!chore.is_active,
+    };
     this._editorError = "";
     this._editorSuccess = "";
     this._editorOpen = true;
@@ -99,10 +134,42 @@ class ChoresTrackerTodayCard extends HTMLElement {
 
   _closeEditor() {
     this._editorOpen = false;
+    this._editorEditId = null;
     this._editorBusy = false;
     this._editorError = "";
     this._editorSuccess = "";
     this._render();
+  }
+
+  _findChoreById(id) {
+    var all = this._allChores();
+    for (var i = 0; i < all.length; i++) {
+      if (String(all[i].id) === String(id)) return all[i];
+    }
+    return null;
+  }
+
+  async _deleteChore(id) {
+    if (!this._hass || this._busy) return;
+    var chore = this._findChoreById(id);
+    var name = chore && chore.title ? chore.title : "this chore";
+    if (!window.confirm('Delete "' + name + '"? This cannot be undone.')) {
+      return;
+    }
+
+    this._busy = true;
+    this._error = "";
+    this._render();
+    try {
+      await this._hass.callService(this._config.domain, "delete_chore", { id: id });
+      await this._hass.callService(this._config.domain, "list_chores", {});
+      await this._hass.callService(this._config.domain, "list_due_chores", {});
+    } catch (err) {
+      this._error = (err && err.message) || "Failed to delete chore.";
+    } finally {
+      this._busy = false;
+      this._render();
+    }
   }
 
   _saveEditorState() {
@@ -214,7 +281,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
     return payload;
   }
 
-  async _createChoreFromEditor() {
+  async _submitEditor() {
     if (!this._hass || this._editorBusy) return;
 
     this._saveEditorState();
@@ -225,13 +292,22 @@ class ChoresTrackerTodayCard extends HTMLElement {
 
     try {
       var payload = this._buildCreatePayload();
-      await this._hass.callService(this._config.domain, "create_chore", payload);
+      if (this._editorEditId) {
+        payload.id = this._editorEditId;
+        await this._hass.callService(this._config.domain, "update_chore", payload);
+      } else {
+        await this._hass.callService(this._config.domain, "create_chore", payload);
+      }
+      await this._hass.callService(this._config.domain, "list_chores", {});
       await this._hass.callService(this._config.domain, "list_due_chores", {});
-      this._editorSuccess = 'Chore "' + payload.title + '" created.';
+      this._editorSuccess = this._editorEditId
+        ? 'Chore "' + payload.title + '" updated.'
+        : 'Chore "' + payload.title + '" created.';
       this._editorOpen = false;
+      this._editorEditId = null;
       this._editorDraft = this._defaultEditorDraft();
     } catch (err) {
-      this._editorError = (err && err.message) || "Failed to create chore.";
+      this._editorError = (err && err.message) || "Failed to save chore.";
     } finally {
       this._editorBusy = false;
       this._render();
@@ -250,11 +326,14 @@ class ChoresTrackerTodayCard extends HTMLElement {
     var showDayOfMonth = showCalendarFields && unit === "months";
     var showAnchorDate = showCalendarFields && unit === "days";
 
+    var modalTitle = this._editorEditId ? "Edit Chore" : "New Chore";
+    var submitLabel = this._editorEditId ? "Save changes" : "Create chore";
+
     return (
       '<div class="ed-overlay" id="ed-overlay">' +
         '<div class="ed-dialog">' +
           '<div class="ed-header">' +
-            '<span>New Chore</span>' +
+            '<span>' + modalTitle + '</span>' +
             '<button class="ed-close" id="ed-close-btn" aria-label="Close">&times;</button>' +
           '</div>' +
           (this._editorError ? '<div class="ed-error">' + this._esc(this._editorError) + '</div>' : '') +
@@ -328,7 +407,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
             '</label>' +
           '</div>' +
           '<div class="ed-actions">' +
-            '<button class="ed-btn-primary" id="ed-submit-btn" ' + dis + '>Create chore</button>' +
+            '<button class="ed-btn-primary" id="ed-submit-btn" ' + dis + '>' + submitLabel + '</button>' +
             '<button id="ed-cancel-btn" ' + dis + '>Cancel</button>' +
           '</div>' +
         '</div>' +
@@ -364,6 +443,10 @@ class ChoresTrackerTodayCard extends HTMLElement {
                 (item.next_due_at ? '<div class="meta">Due ' + this._esc(this._fmtDate(item.next_due_at)) + "</div>" : "") +
                 extraMeta +
                 "</div>" +
+                '<div class="row-actions">' +
+                '<button class="small-btn edit-task-btn" data-id="' + this._esc(item.id) + '" ' + (this._busy ? "disabled" : "") + '>Edit</button>' +
+                '<button class="small-btn delete-task-btn" data-id="' + this._esc(item.id) + '" ' + (this._busy ? "disabled" : "") + '>Delete</button>' +
+                '</div>' +
                 "</div>"
               );
             }.bind(this)
@@ -395,6 +478,10 @@ class ChoresTrackerTodayCard extends HTMLElement {
                 (item.next_due_at ? '<div class="meta">' + this._esc(this._fmtDate(item.next_due_at)) + "</div>" : "") +
                 completedMeta +
                 "</div>" +
+                '<div class="row-actions">' +
+                '<button class="small-btn edit-task-btn" data-id="' + this._esc(item.id) + '" ' + (this._busy ? "disabled" : "") + '>Edit</button>' +
+                '<button class="small-btn delete-task-btn" data-id="' + this._esc(item.id) + '" ' + (this._busy ? "disabled" : "") + '>Delete</button>' +
+                '</div>' +
                 "</div>"
               );
             }.bind(this)
@@ -438,6 +525,9 @@ class ChoresTrackerTodayCard extends HTMLElement {
       ".left { min-width: 0; flex: 1; }" +
       ".title { font-weight: 600; }" +
       ".meta { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }" +
+      ".row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }" +
+      ".small-btn { border: 1px solid var(--divider-color); border-radius: 8px; background: var(--secondary-background-color); color: var(--primary-text-color); padding: 4px 8px; font-size: 0.8rem; cursor: pointer; }" +
+      ".small-btn:hover { border-color: var(--primary-color); }" +
       ".empty { color: var(--secondary-text-color); font-style: italic; padding: 8px 0; }" +
       ".error { margin-bottom: 8px; color: #b00020; font-size: 0.9rem; }" +
       ".upcoming-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--divider-color); }" +
@@ -481,6 +571,24 @@ class ChoresTrackerTodayCard extends HTMLElement {
       }.bind(this);
     }
 
+    var editBtns = this.shadowRoot.querySelectorAll("button.edit-task-btn");
+    for (var j = 0; j < editBtns.length; j++) {
+      editBtns[j].onclick = function (ev) {
+        var id = parseInt(ev.currentTarget.getAttribute("data-id"), 10);
+        if (Number.isNaN(id)) return;
+        var chore = this._findChoreById(id);
+        if (chore) this._openEditorForChore(chore);
+      }.bind(this);
+    }
+
+    var deleteBtns = this.shadowRoot.querySelectorAll("button.delete-task-btn");
+    for (var k = 0; k < deleteBtns.length; k++) {
+      deleteBtns[k].onclick = function (ev) {
+        var id = parseInt(ev.currentTarget.getAttribute("data-id"), 10);
+        if (!Number.isNaN(id)) this._deleteChore(id);
+      }.bind(this);
+    }
+
     var closeBtn = this.shadowRoot.getElementById("ed-close-btn");
     if (closeBtn) {
       closeBtn.onclick = function () {
@@ -519,7 +627,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
     var submitBtn = this.shadowRoot.getElementById("ed-submit-btn");
     if (submitBtn) {
       submitBtn.onclick = function () {
-        this._createChoreFromEditor();
+        this._submitEditor();
       }.bind(this);
     }
   }
