@@ -17,6 +17,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
     this._editorError = "";
     this._editorSuccess = "";
     this._editorDraft = this._defaultEditorDraft();
+    this._deferredRender = false;
   }
 
   setConfig(config) {
@@ -31,6 +32,15 @@ class ChoresTrackerTodayCard extends HTMLElement {
       this._hass.callService(this._config.domain, "list_due_chores", {}).catch(function () {});
       this._hass.callService(this._config.domain, "list_chores", {}).catch(function () {});
     }
+
+    // Keep the editor stable while user is typing; background sensor updates
+    // should not rebuild the DOM and wipe in-progress input.
+    if (this._editorOpen) {
+      this._saveEditorState();
+      this._deferredRender = true;
+      return;
+    }
+
     this._render();
   }
 
@@ -138,6 +148,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
     this._editorBusy = false;
     this._editorError = "";
     this._editorSuccess = "";
+    this._deferredRender = false;
     this._render();
   }
 
