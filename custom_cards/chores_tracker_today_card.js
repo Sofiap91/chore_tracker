@@ -440,7 +440,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
                 '<input class="task-check" type="checkbox" data-id="' + this._esc(item.id) + '" ' + (this._busy ? "disabled" : "") + '>' +
                 '<div class="left">' +
                 '<div class="title">' + this._esc(item.title) + "</div>" +
-                (item.next_due_at ? '<div class="meta">Due ' + this._esc(this._fmtDate(item.next_due_at)) + "</div>" : "") +
+                (item.next_due_at ? '<div class="meta meta-due">Due ' + this._esc(this._fmtDate(item.next_due_at)) + "</div>" : "") +
                 extraMeta +
                 "</div>" +
                 '<div class="row-actions">' +
@@ -475,7 +475,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
                 '<input class="task-check" type="checkbox" data-id="' + this._esc(item.id) + '" ' + (this._busy ? "disabled" : "") + '>' +
                 '<div class="left">' +
                 '<div class="title">' + this._esc(item.title) + "</div>" +
-                (item.next_due_at ? '<div class="meta">' + this._esc(this._fmtDate(item.next_due_at)) + "</div>" : "") +
+                (item.next_due_at ? '<div class="meta meta-due">Due ' + this._esc(this._fmtDate(item.next_due_at)) + "</div>" : "") +
                 completedMeta +
                 "</div>" +
                 '<div class="row-actions">' +
@@ -525,6 +525,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
       ".left { min-width: 0; flex: 1; }" +
       ".title { font-weight: 600; }" +
       ".meta { color: var(--secondary-text-color); font-size: 0.85rem; margin-top: 2px; }" +
+      ".meta-due { color: var(--primary-color); }" +
       ".row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }" +
       ".small-btn { border: 1px solid var(--divider-color); border-radius: 8px; background: var(--secondary-background-color); color: var(--primary-text-color); padding: 4px 8px; font-size: 0.8rem; cursor: pointer; }" +
       ".small-btn:hover { border-color: var(--primary-color); }" +
