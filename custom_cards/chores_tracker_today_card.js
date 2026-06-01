@@ -467,8 +467,10 @@ class ChoresTrackerTodayCard extends HTMLElement {
 
     var allChores = this._allChores();
     var activeChores = allChores.filter(function (c) { return c.is_active; });
+    var dueIds = {};
+    dueChores.forEach(function (c) { dueIds[String(c.id)] = true; });
     var upcomingChores = activeChores
-      .filter(function (c) { return c.next_due_at; })
+      .filter(function (c) { return c.next_due_at && !dueIds[String(c.id)]; })
       .sort(function (a, b) {
         var aTime = new Date(a.next_due_at).getTime();
         var bTime = new Date(b.next_due_at).getTime();
