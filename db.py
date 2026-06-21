@@ -227,24 +227,18 @@ class Database:
             elif mode == RECURRENCE_FROM_COMPLETION:
                 chore.next_due_at = self._add_interval(now, value, unit)
             else:
-                # Calendar completion should always move to the next iteration,
-                # even if completed before the currently scheduled date.
-                if chore.next_due_at is not None:
-                    chore.next_due_at = self._advance_calendar_due(
-                        current_due=self._as_utc(chore.next_due_at),
-                        value=value,
-                        unit=unit,
-                        day_of_month=chore.calendar_day_of_month,
-                    )
-                else:
-                    chore.next_due_at = self._next_calendar_due(
-                        value=value,
-                        unit=unit,
-                        weekday=chore.calendar_weekday,
-                        day_of_month=chore.calendar_day_of_month,
-                        anchor_date_str=chore.anchor_date,
-                        reference_dt=now,
-                    )
+                # Calendar completion uses schedule alignment, but never before
+                # completion plus one full interval.
+                min_due_at = self._add_interval(now, value, unit)
+                chore.next_due_at = self._next_calendar_due(
+                    value=value,
+                    unit=unit,
+                    weekday=chore.calendar_weekday,
+                    day_of_month=chore.calendar_day_of_month,
+                    anchor_date_str=chore.anchor_date,
+                    reference_dt=min_due_at,
+                    include_reference=True,
+                )
 
             chore.last_completed_at = now
             completion.computed_next_due_at = chore.next_due_at
@@ -352,15 +346,21 @@ class Database:
         day_of_month: int | None,
         anchor_date_str: str | None,
         reference_dt: datetime,
+        include_reference: bool = False,
     ) -> datetime:
         if value is None or unit is None:
             raise ValueError("Calendar recurrence requires interval_value and interval_unit")
+
+        def _is_before_threshold(candidate: datetime) -> bool:
+            if include_reference:
+                return candidate < reference_dt
+            return candidate <= reference_dt
 
         # Always return a future due occurrence for fixed schedules.
         if unit == UNIT_DAYS:
             anchor = self._parse_anchor_date(anchor_date_str) if anchor_date_str else reference_dt.date()
             due_date = datetime.combine(anchor, time.min, tzinfo=timezone.utc)
-            while due_date <= reference_dt:
+            while _is_before_threshold(due_date):
                 due_date += timedelta(days=value)
             return due_date
 
@@ -371,7 +371,7 @@ class Database:
             anchor = self._parse_anchor_date(anchor_date_str) if anchor_date_str else reference_dt.date()
             due_date = self._first_weekday_on_or_after(anchor, weekday)
             due_dt = datetime.combine(due_date, time.min, tzinfo=timezone.utc)
-            while due_dt <= reference_dt:
+            while _is_before_threshold(due_dt):
                 due_dt += timedelta(weeks=value)
             return due_dt
 
@@ -385,7 +385,7 @@ class Database:
                 time.min,
                 tzinfo=timezone.utc,
             )
-            while due_dt <= reference_dt:
+            while _is_before_threshold(due_dt):
                 due_dt = due_dt + relativedelta(months=value)
                 due_dt = due_dt.replace(
                     day=self._clamp_day_in_month(due_dt.year, due_dt.month, day_of_month).day
@@ -406,35 +406,6 @@ class Database:
             return base_dt + relativedelta(months=interval_value)
 
         raise ValueError("interval_unit must be one of: days, weeks, months")
-
-    def _advance_calendar_due(
-        self,
-        current_due: datetime,
-        value: int | None,
-        unit: str | None,
-        day_of_month: int | None,
-    ) -> datetime:
-        if value is None or unit is None:
-            raise ValueError("Calendar recurrence requires interval_value and interval_unit")
-
-        if unit == UNIT_DAYS:
-            return current_due + timedelta(days=value)
-
-        if unit == UNIT_WEEKS:
-            return current_due + timedelta(weeks=value)
-
-        if unit == UNIT_MONTHS:
-            candidate = current_due + relativedelta(months=value)
-            if day_of_month is None:
-                return candidate
-            clamped_day = self._clamp_day_in_month(
-                candidate.year,
-                candidate.month,
-                day_of_month,
-            ).day
-            return candidate.replace(day=clamped_day)
-
-        raise ValueError("Unsupported calendar interval unit")
 
     def _serialize_chore(self, chore: Chore) -> dict:
         return {

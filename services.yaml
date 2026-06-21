@@ -155,7 +155,7 @@ delete_chore:
 
 mark_complete:
   name: Mark chore complete
-  description: Records completion and computes the next due occurrence according to recurrence rules.
+  description: Records completion and computes the next due occurrence according to recurrence rules. For calendar chores, next due is the first calendar-aligned occurrence on or after completion plus one full interval.
   fields:
     id:
       required: true

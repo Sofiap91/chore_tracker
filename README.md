@@ -4,7 +4,7 @@ Home Assistant custom integration for recurring chores with three completion pol
 
 - one_off: complete once, then it does not renew
 - from_completion: next due is every N days/weeks/months from completion time
-- calendar: schedule is independent of completion and always moves to next scheduled occurrence
+- calendar: schedule remains calendar-aligned and, when completed, next due is the first scheduled occurrence on or after completion + interval
 
 ## Services
 
