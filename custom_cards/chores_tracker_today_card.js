@@ -65,6 +65,10 @@ class ChoresTrackerTodayCard extends HTMLElement {
     if (!iso) return "";
     var d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
+    // Date-only chores are stored at midnight UTC — show just the date.
+    if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) {
+      return d.toLocaleDateString();
+    }
     return d.toLocaleString();
   }
 
@@ -97,6 +101,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
       anchor_date: "",
       first_due_at_local: "",
       is_active: true,
+      use_due_time: false,
     };
   }
 
@@ -112,6 +117,24 @@ class ChoresTrackerTodayCard extends HTMLElement {
     return y + "-" + m + "-" + day + "T" + hh + ":" + mm;
   }
 
+  _toLocalDateInput(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    // Use UTC date to avoid local-timezone shift on midnight-UTC values.
+    var y = d.getUTCFullYear();
+    var m = String(d.getUTCMonth() + 1).padStart(2, "0");
+    var day = String(d.getUTCDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  _hasTimeComponent(iso) {
+    if (!iso) return false;
+    var d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return false;
+    return !(d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0);
+  }
+
   _openEditor() {
     this._editorEditId = null;
     this._editorDraft = this._defaultEditorDraft();
@@ -123,6 +146,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
 
   _openEditorForChore(chore) {
     if (!chore) return;
+    var useDueTime = this._hasTimeComponent(chore.next_due_at);
     this._editorEditId = chore.id;
     this._editorDraft = {
       title: chore.title || "",
@@ -133,8 +157,11 @@ class ChoresTrackerTodayCard extends HTMLElement {
       calendar_weekday: chore.calendar_weekday != null ? String(chore.calendar_weekday) : "2",
       calendar_day_of_month: chore.calendar_day_of_month != null ? String(chore.calendar_day_of_month) : "1",
       anchor_date: chore.anchor_date || "",
-      first_due_at_local: this._toLocalDatetimeInput(chore.next_due_at),
+      first_due_at_local: useDueTime
+        ? this._toLocalDatetimeInput(chore.next_due_at)
+        : this._toLocalDateInput(chore.next_due_at),
       is_active: !!chore.is_active,
+      use_due_time: useDueTime,
     };
     this._editorError = "";
     this._editorSuccess = "";
@@ -197,6 +224,7 @@ class ChoresTrackerTodayCard extends HTMLElement {
     var anchorDateEl = root.getElementById("ed-anchor-date");
     var firstDueEl = root.getElementById("ed-first-due-at");
     var activeEl = root.getElementById("ed-is-active");
+    var useDueTimeEl = root.getElementById("ed-use-due-time");
 
     this._editorDraft.title = titleEl ? titleEl.value : this._editorDraft.title;
     this._editorDraft.description = descEl ? descEl.value : this._editorDraft.description;
@@ -208,6 +236,16 @@ class ChoresTrackerTodayCard extends HTMLElement {
     this._editorDraft.anchor_date = anchorDateEl ? anchorDateEl.value : this._editorDraft.anchor_date;
     this._editorDraft.first_due_at_local = firstDueEl ? firstDueEl.value : this._editorDraft.first_due_at_local;
     this._editorDraft.is_active = activeEl ? !!activeEl.checked : this._editorDraft.is_active;
+    this._editorDraft.use_due_time = useDueTimeEl ? !!useDueTimeEl.checked : this._editorDraft.use_due_time;
+  }
+
+  _onEditorUseTimeChange() {
+    this._saveEditorState();
+    // Reset the date value when toggling to avoid sending a stale format.
+    this._editorDraft.first_due_at_local = "";
+    this._editorError = "";
+    this._editorSuccess = "";
+    this._render();
   }
 
   _onEditorModeChange() {
@@ -251,9 +289,15 @@ class ChoresTrackerTodayCard extends HTMLElement {
     if (description) payload.description = description;
 
     if (d.first_due_at_local) {
-      var firstDueDate = new Date(d.first_due_at_local);
-      if (!Number.isNaN(firstDueDate.getTime())) {
-        payload.first_due_at = firstDueDate.toISOString();
+      if (d.use_due_time) {
+        // Send full ISO so DB preserves the exact time.
+        var firstDueDate = new Date(d.first_due_at_local);
+        if (!Number.isNaN(firstDueDate.getTime())) {
+          payload.first_due_at = firstDueDate.toISOString();
+        }
+      } else {
+        // Send date-only string so DB normalises to midnight.
+        payload.first_due_at = d.first_due_at_local;
       }
     }
 
@@ -410,8 +454,12 @@ class ChoresTrackerTodayCard extends HTMLElement {
               : '') +
             '<div class="ed-field">' +
               '<label>First due at (optional)</label>' +
-              '<input id="ed-first-due-at" type="datetime-local" value="' + this._esc(d.first_due_at_local) + '" ' + dis + '>' +
+              '<input id="ed-first-due-at" type="' + (d.use_due_time ? 'datetime-local' : 'date') + '" value="' + this._esc(d.first_due_at_local) + '" ' + dis + '>' +
             '</div>' +
+            '<label class="ed-check-row">' +
+              '<input id="ed-use-due-time" type="checkbox" ' + (d.use_due_time ? 'checked ' : '') + dis + '>' +
+              '<span>Specify exact time</span>' +
+            '</label>' +
             '<label class="ed-check-row">' +
               '<input id="ed-is-active" type="checkbox" ' + (d.is_active ? 'checked ' : '') + dis + '>' +
               '<span>Active</span>' +
@@ -635,6 +683,13 @@ class ChoresTrackerTodayCard extends HTMLElement {
     if (unitSelect) {
       unitSelect.onchange = function () {
         this._onEditorUnitChange();
+      }.bind(this);
+    }
+
+    var useTimeCheck = this.shadowRoot.getElementById("ed-use-due-time");
+    if (useTimeCheck) {
+      useTimeCheck.onchange = function () {
+        this._onEditorUseTimeChange();
       }.bind(this);
     }
 
