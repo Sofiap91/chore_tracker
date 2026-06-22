@@ -456,14 +456,16 @@ class ChoresTrackerTodayCard extends HTMLElement {
               '<label>First due at (optional)</label>' +
               '<input id="ed-first-due-at" type="' + (d.use_due_time ? 'datetime-local' : 'date') + '" value="' + this._esc(d.first_due_at_local) + '" ' + dis + '>' +
             '</div>' +
-            '<label class="ed-check-row">' +
-              '<input id="ed-use-due-time" type="checkbox" ' + (d.use_due_time ? 'checked ' : '') + dis + '>' +
-              '<span>Specify exact time</span>' +
-            '</label>' +
-            '<label class="ed-check-row">' +
-              '<input id="ed-is-active" type="checkbox" ' + (d.is_active ? 'checked ' : '') + dis + '>' +
-              '<span>Active</span>' +
-            '</label>' +
+            '<div class="ed-check-pair">' +
+              '<label class="ed-check-row">' +
+                '<input id="ed-use-due-time" type="checkbox" ' + (d.use_due_time ? 'checked ' : '') + dis + '>' +
+                '<span>Specify exact time</span>' +
+              '</label>' +
+              '<label class="ed-check-row">' +
+                '<input id="ed-is-active" type="checkbox" ' + (d.is_active ? 'checked ' : '') + dis + '>' +
+                '<span>Active</span>' +
+              '</label>' +
+            '</div>' +
           '</div>' +
           '<div class="ed-actions">' +
             '<button class="ed-btn-primary" id="ed-submit-btn" ' + dis + '>' + submitLabel + '</button>' +
@@ -608,7 +610,8 @@ class ChoresTrackerTodayCard extends HTMLElement {
       ".ed-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }" +
       ".ed-dialog input, .ed-dialog textarea, .ed-dialog select { width: 100%; box-sizing: border-box; border: 1px solid var(--divider-color); border-radius: 8px; background: var(--secondary-background-color); color: var(--primary-text-color); padding: 10px; font-size: 0.95rem; font-family: inherit; }" +
       ".ed-dialog textarea { min-height: 80px; resize: vertical; }" +
-      ".ed-check-row { display: inline-flex; align-items: center; gap: 8px; margin-top: 2px; }" +
+      ".ed-check-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center; }" +
+      ".ed-check-row { display: inline-flex; align-items: center; gap: 8px; }" +
       ".ed-actions { padding: 12px 16px; border-top: 1px solid var(--divider-color); display: flex; justify-content: flex-end; gap: 8px; }" +
       ".ed-btn-primary { border: 1px solid var(--primary-color); background: var(--primary-color); color: var(--text-primary-color, #fff); border-radius: 8px; padding: 8px 12px; cursor: pointer; }" +
       ".ed-error { color: #c0392b; padding: 10px 16px 0 16px; font-size: 0.9rem; }" +
