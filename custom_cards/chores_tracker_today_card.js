@@ -18,6 +18,9 @@ class ChoresTrackerTodayCard extends HTMLElement {
     this._editorSuccess = "";
     this._editorDraft = this._defaultEditorDraft();
     this._deferredRender = false;
+
+    this._undoChoreId = null;
+    this._undoTimer = null;
   }
 
   setConfig(config) {
@@ -81,8 +84,34 @@ class ChoresTrackerTodayCard extends HTMLElement {
       await this._hass.callService(this._config.domain, "mark_complete", { id: id });
       await this._hass.callService(this._config.domain, "list_chores", {});
       await this._hass.callService(this._config.domain, "list_due_chores", {});
+      if (this._undoTimer) clearTimeout(this._undoTimer);
+      this._undoChoreId = id;
+      this._undoTimer = setTimeout(function () {
+        this._undoChoreId = null;
+        this._undoTimer = null;
+        this._render();
+      }.bind(this), 10000);
     } catch (err) {
       this._error = (err && err.message) || "Failed to mark chore complete.";
+    } finally {
+      this._busy = false;
+      this._render();
+    }
+  }
+
+  async _undoCompletion(id) {
+    if (!this._hass || this._busy) return;
+    if (this._undoTimer) { clearTimeout(this._undoTimer); this._undoTimer = null; }
+    this._undoChoreId = null;
+    this._busy = true;
+    this._error = "";
+    this._render();
+    try {
+      await this._hass.callService(this._config.domain, "undo_completion", { id: id });
+      await this._hass.callService(this._config.domain, "list_chores", {});
+      await this._hass.callService(this._config.domain, "list_due_chores", {});
+    } catch (err) {
+      this._error = (err && err.message) || "Failed to undo completion.";
     } finally {
       this._busy = false;
       this._render();
@@ -563,6 +592,9 @@ class ChoresTrackerTodayCard extends HTMLElement {
       '</div>' +
       "</div>" +
       (this._error ? '<div class="error">' + this._esc(this._error) + "</div>" : "") +
+      (this._undoChoreId !== null
+        ? '<div class="undo-bar"><span>Marked as done.</span><button class="undo-btn" id="undo-btn">Undo</button></div>'
+        : '') +
       dueRows +
       '<div class="upcoming-section">' +
       '<h3>Upcoming</h3>' +
@@ -600,6 +632,9 @@ class ChoresTrackerTodayCard extends HTMLElement {
       ".upcoming-row { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--divider-color); }" +
       ".upcoming-row:last-child { border-bottom: none; }" +
       ".upcoming-empty { color: var(--secondary-text-color); font-style: italic; padding: 8px 0; font-size: 0.9rem; }" +
+      ".undo-bar { display: flex; align-items: center; justify-content: space-between; background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; font-size: 0.9rem; }" +
+      ".undo-btn { border: 1px solid var(--primary-color); background: transparent; color: var(--primary-color); border-radius: 6px; padding: 4px 10px; font-size: 0.85rem; cursor: pointer; flex-shrink: 0; }" +
+      ".undo-btn:hover { background: var(--primary-color); color: var(--text-primary-color, #fff); }" +
       ".ed-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 14px; box-sizing: border-box; }" +
       ".ed-dialog { width: min(620px, 96vw); max-height: 90vh; background: var(--card-background-color); border-radius: 14px; box-shadow: 0 10px 38px rgba(0,0,0,0.35); display: flex; flex-direction: column; }" +
       ".ed-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--divider-color); font-weight: 700; }" +
@@ -700,6 +735,13 @@ class ChoresTrackerTodayCard extends HTMLElement {
     if (submitBtn) {
       submitBtn.onclick = function () {
         this._submitEditor();
+      }.bind(this);
+    }
+
+    var undoBtn = this.shadowRoot.getElementById("undo-btn");
+    if (undoBtn) {
+      undoBtn.onclick = function () {
+        this._undoCompletion(this._undoChoreId);
       }.bind(this);
     }
   }

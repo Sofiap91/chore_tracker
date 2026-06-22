@@ -273,6 +273,44 @@ class Database:
             )
             return [self._serialize_completion(item) for item in completions]
 
+    def undo_last_completion(self, chore_id: int) -> dict:
+        with self.SessionLocal() as session:
+            chore = session.query(Chore).filter(Chore.id == chore_id).one_or_none()
+            if chore is None:
+                raise ValueError(f"Chore with id {chore_id} does not exist")
+
+            last = (
+                session.query(ChoreCompletion)
+                .filter(ChoreCompletion.chore_id == chore_id)
+                .order_by(ChoreCompletion.completed_at.desc())
+                .first()
+            )
+            if last is None:
+                raise ValueError(f"Chore with id {chore_id} has no completions to undo")
+
+            # Restore the due date that was active before this completion.
+            chore.next_due_at = last.due_at_when_completed
+
+            # Restore last_completed_at from the previous completion, if any.
+            previous = (
+                session.query(ChoreCompletion)
+                .filter(ChoreCompletion.chore_id == chore_id)
+                .filter(ChoreCompletion.id != last.id)
+                .order_by(ChoreCompletion.completed_at.desc())
+                .first()
+            )
+            chore.last_completed_at = previous.completed_at if previous else None
+
+            # For one_off chores, restore active state.
+            if chore.recurrence_mode == RECURRENCE_ONE_OFF:
+                chore.is_done_once = False
+                chore.is_active = True
+
+            session.delete(last)
+            session.commit()
+            session.refresh(chore)
+            return self._serialize_chore(chore)
+
     def _validate_mode(self, mode: str | None) -> str:
         if mode not in {RECURRENCE_ONE_OFF, RECURRENCE_FROM_COMPLETION, RECURRENCE_CALENDAR}:
             raise ValueError(

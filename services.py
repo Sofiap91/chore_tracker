@@ -123,6 +123,13 @@ async def async_register_services(hass: HomeAssistant) -> None:
         )
         await _refresh_all(hass)
 
+    async def handle_undo_completion(call: ServiceCall):
+        await hass.async_add_executor_job(
+            db.undo_last_completion,
+            call.data["id"],
+        )
+        await _refresh_all(hass)
+
     async def handle_get_history(call: ServiceCall):
         history = await hass.async_add_executor_job(
             db.get_completion_history,
@@ -217,6 +224,13 @@ async def async_register_services(hass: HomeAssistant) -> None:
                 vol.Optional("limit"): vol.Coerce(int),
             }
         ),
+    )
+
+    hass.services.async_register(
+        DOMAIN,
+        "undo_completion",
+        handle_undo_completion,
+        schema=vol.Schema({vol.Required("id"): vol.Coerce(int)}),
     )
 
     await _refresh_all(hass)

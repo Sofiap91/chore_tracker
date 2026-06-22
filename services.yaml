@@ -185,3 +185,14 @@ get_history:
           min: 1
           max: 200
           mode: box
+
+undo_completion:
+  name: Undo last completion
+  description: Reverses the most recent completion for a chore, restoring its previous due date and active state.
+  fields:
+    id:
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
