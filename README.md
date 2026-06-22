@@ -6,6 +6,8 @@ Home Assistant custom integration for recurring chores with three completion pol
 - from_completion: next due is every N days/weeks/months from completion time
 - calendar: schedule remains calendar-aligned and, when completed, next due is the first scheduled occurrence on or after completion + interval
 
+By default, chores are due by date (start of due day at 00:00 UTC). If `first_due_at` includes a datetime (with `T`), exact time is preserved for that chore's schedule.
+
 ## Services
 
 - chores_tracker.create_chore

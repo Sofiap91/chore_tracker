@@ -81,6 +81,7 @@ class Database:
 
         now = self._utcnow()
         parsed_first_due = self._parse_optional_iso(first_due_at)
+        use_due_time = self._should_use_due_time(first_due_at)
 
         chore = Chore(
             title=title,
@@ -100,6 +101,7 @@ class Database:
                 anchor_date_str=anchor_date,
                 now=now,
                 first_due_at=parsed_first_due,
+                use_due_time=use_due_time,
             ),
             last_completed_at=None,
             is_active=is_active,
@@ -171,21 +173,24 @@ class Database:
             chore.interval_unit = unit
 
             parsed_first_due = self._parse_optional_iso(first_due_at)
+            should_use_due_time = self._should_use_due_time(first_due_at)
             if parsed_first_due is not None:
-                chore.next_due_at = parsed_first_due
+                chore.next_due_at = self._normalize_due_at(parsed_first_due, should_use_due_time)
             elif mode == RECURRENCE_ONE_OFF and chore.is_done_once:
                 chore.next_due_at = None
             elif mode == RECURRENCE_CALENDAR:
-                chore.next_due_at = self._next_calendar_due(
+                calendar_due = self._next_calendar_due(
                     value=value,
                     unit=unit,
                     weekday=chore.calendar_weekday,
                     day_of_month=chore.calendar_day_of_month,
                     anchor_date_str=chore.anchor_date,
-                    reference_dt=now,
+                    reference_dt=self._normalize_due_at(now, self._has_time_component(chore.next_due_at)),
                 )
+                chore.next_due_at = self._normalize_due_at(calendar_due, self._has_time_component(chore.next_due_at))
             elif mode == RECURRENCE_FROM_COMPLETION and chore.last_completed_at:
-                chore.next_due_at = self._add_interval(chore.last_completed_at, value, unit)
+                completion_due = self._add_interval(chore.last_completed_at, value, unit)
+                chore.next_due_at = self._normalize_due_at(completion_due, self._has_time_component(chore.next_due_at))
 
             session.commit()
             session.refresh(chore)
@@ -225,12 +230,16 @@ class Database:
                 chore.is_active = False
                 chore.next_due_at = None
             elif mode == RECURRENCE_FROM_COMPLETION:
-                chore.next_due_at = self._add_interval(now, value, unit)
+                next_due = self._add_interval(now, value, unit)
+                chore.next_due_at = self._normalize_due_at(next_due, self._has_time_component(chore.next_due_at))
             else:
                 # Calendar completion uses schedule alignment, but never before
                 # completion plus one full interval.
-                min_due_at = self._add_interval(now, value, unit)
-                chore.next_due_at = self._next_calendar_due(
+                min_due_at = self._normalize_due_at(
+                    self._add_interval(now, value, unit),
+                    self._has_time_component(chore.next_due_at),
+                )
+                calendar_due = self._next_calendar_due(
                     value=value,
                     unit=unit,
                     weekday=chore.calendar_weekday,
@@ -239,6 +248,7 @@ class Database:
                     reference_dt=min_due_at,
                     include_reference=True,
                 )
+                chore.next_due_at = self._normalize_due_at(calendar_due, self._has_time_component(chore.next_due_at))
 
             chore.last_completed_at = now
             completion.computed_next_due_at = chore.next_due_at
@@ -319,24 +329,26 @@ class Database:
         anchor_date_str: str | None,
         now: datetime,
         first_due_at: datetime | None,
+        use_due_time: bool,
     ) -> datetime | None:
         if first_due_at is not None:
-            return first_due_at
+            return self._normalize_due_at(first_due_at, use_due_time)
 
         if mode == RECURRENCE_ONE_OFF:
-            return now
+            return self._normalize_due_at(now, use_due_time)
 
         if mode == RECURRENCE_FROM_COMPLETION:
-            return now
+            return self._normalize_due_at(now, use_due_time)
 
-        return self._next_calendar_due(
+        calendar_due = self._next_calendar_due(
             value=value,
             unit=unit,
             weekday=weekday,
             day_of_month=day_of_month,
             anchor_date_str=anchor_date_str,
-            reference_dt=now,
+            reference_dt=self._normalize_due_at(now, use_due_time),
         )
+        return self._normalize_due_at(calendar_due, use_due_time)
 
     def _next_calendar_due(
         self,
@@ -448,6 +460,12 @@ class Database:
         dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
         return self._as_utc(dt)
 
+    def _should_use_due_time(self, iso_value: str | None) -> bool:
+        if not iso_value:
+            return False
+        normalized = iso_value.strip().replace("Z", "+00:00")
+        return "T" in normalized
+
     def _parse_anchor_date(self, anchor_date_str: str) -> date:
         return date.fromisoformat(anchor_date_str)
 
@@ -458,6 +476,23 @@ class Database:
         if dt.tzinfo is None:
             return dt.replace(tzinfo=timezone.utc)
         return dt.astimezone(timezone.utc)
+
+    def _has_time_component(self, dt: datetime | None) -> bool:
+        if dt is None:
+            return False
+        dt_utc = self._as_utc(dt)
+        return not (
+            dt_utc.hour == 0
+            and dt_utc.minute == 0
+            and dt_utc.second == 0
+            and dt_utc.microsecond == 0
+        )
+
+    def _normalize_due_at(self, due_at: datetime, use_due_time: bool) -> datetime:
+        due_at_utc = self._as_utc(due_at)
+        if use_due_time:
+            return due_at_utc
+        return datetime.combine(due_at_utc.date(), time.min, tzinfo=timezone.utc)
 
     def _first_weekday_on_or_after(self, anchor: date, target_weekday: int) -> date:
         delta = (target_weekday - anchor.weekday()) % 7
