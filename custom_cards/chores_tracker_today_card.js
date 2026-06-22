@@ -596,12 +596,12 @@ class ChoresTrackerTodayCard extends HTMLElement {
         ? '<div class="undo-bar"><span>Marked as done.</span><button class="undo-btn" id="undo-btn">Undo</button></div>'
         : '') +
       dueRows +
-      '<div class="upcoming-section">' +
-      '<h3>Upcoming</h3>' +
+      '<details class="upcoming-section">' +
+      '<summary><h3>Upcoming</h3></summary>' +
       '<div class="upcoming-list">' +
       upcomingRows +
       '</div>' +
-      '</div>' +
+      '</details>' +
       "</div>" +
       "</ha-card>" +
       (this._editorOpen ? this._renderEditorModal() : "") +
@@ -627,8 +627,12 @@ class ChoresTrackerTodayCard extends HTMLElement {
       ".empty { color: var(--secondary-text-color); font-style: italic; padding: 8px 0; }" +
       ".error { margin-bottom: 8px; color: #b00020; font-size: 0.9rem; }" +
       ".upcoming-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--divider-color); }" +
-      ".upcoming-section h3 { margin: 0 0 10px 0; font-size: 0.95rem; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: 0.05em; }" +
-      ".upcoming-list { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }" +
+      ".upcoming-section summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; }" +
+      ".upcoming-section summary::-webkit-details-marker { display: none; }" +
+      ".upcoming-section summary::before { content: '\\25B6'; font-size: 0.7rem; color: var(--secondary-text-color); transition: transform 0.2s; }" +
+      ".upcoming-section[open] summary::before { content: '\\25BC'; }" +
+      ".upcoming-section h3 { display: inline; margin: 0; font-size: 0.95rem; color: var(--secondary-text-color); text-transform: uppercase; letter-spacing: 0.05em; }" +
+      ".upcoming-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }" +
       ".upcoming-row { display: flex; align-items: flex-start; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--divider-color); }" +
       ".upcoming-row:last-child { border-bottom: none; }" +
       ".upcoming-empty { color: var(--secondary-text-color); font-style: italic; padding: 8px 0; font-size: 0.9rem; }" +
